@@ -16,7 +16,7 @@ from pages.new_data_input import show_new_data_input
 from pages.dashboard import show_dashboard  # НОВОЕ
 from pages.reports import show_reports  # НОВОЕ
 from pages.admin import show_admin_panel  # НОВОЕ - Админ-панель
-
+from pages.supabase_test import show_supabase_test  # ← ДОБАВЬТЕ ЭТУ СТРОКУ
 # ---------------------------
 # Установки страницы
 # ---------------------------
@@ -182,6 +182,8 @@ with st.sidebar:
     # Dashboard - доступен всем
     if check_permission(user_role, "view_dashboard"):
         page_options.append(("🎯 Dashboard", "dashboard"))
+    
+    page_options.append(("🔧 Тест Supabase", "supabase_test"))
 
     # Главная страница
     page_options.append((get_text("menu_home", lang_choice), "home"))
@@ -253,6 +255,8 @@ page = st.session_state.selected_page
 
 if page == "dashboard":
     show_dashboard(lang_choice)
+elif page == "supabase_test":  
+    show_supabase_test()
 elif page == "home":
     show_home(lang_choice)
 elif page == "production":
