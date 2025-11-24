@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.idea/
+venv/
+*.db
+*.sqlite3
+".idea/" 
+.devcontainer
+# Исключаем папку виртуального окружения
+.venv/
+venv/
+# Также полезно исключить папки IDE, например, PyCharm
+.idea/
