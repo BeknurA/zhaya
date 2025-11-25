@@ -63,7 +63,7 @@ def safe_read_csv(path: Path):
     return pd.DataFrame()
 
 
-@st.cache_data
+@st.cache_data(ttl=600) # Кэширование на 10 минут
 def load_all_data():
     """
     Загружает все данные из файлов Excel и CSV.

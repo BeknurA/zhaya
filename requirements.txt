@@ -3,3 +3,7 @@ plotly
 scikit-learn
 openpyxl
 pyarrow
+supabase
+psycopg2-binary
+cryptography
+python-dotenv

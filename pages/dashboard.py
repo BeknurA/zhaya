@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import numpy as np
 from ui import get_text
-from database import fetch_measurements
+from database_supabase import fetch_lab_measurements
 from data_loader import load_all_data
 
 
@@ -40,17 +40,18 @@ def show_dashboard(lang_choice):
     """, unsafe_allow_html=True)
 
     # Загрузка реальных данных
-    df_measurements = fetch_measurements(limit=1000)
+    df_measurements = fetch_lab_measurements()
     all_meat_data, df_ph_raw, _, _, _ = load_all_data()
 
     # Генерация реалистичных данных для сегодня
     today = current_time.date()
 
     # Фильтрация данных за сегодня
-    if not df_measurements.empty and 'created_at' in df_measurements.columns:
-        df_today = df_measurements[df_measurements['created_at'].dt.date == today]
+    if not df_measurements.empty and 'measurement_time' in df_measurements.columns:
+        df_measurements['measurement_time'] = pd.to_datetime(df_measurements['measurement_time'])
+        df_today = df_measurements[df_measurements['measurement_time'].dt.date == today]
         total_measurements = len(df_today)
-        avg_ph_today = df_today['ph'].mean() if 'ph' in df_today.columns else 5.35
+        avg_ph_today = df_today[df_today['parameter_name'] == 'pH']['parameter_value'].mean() if not df_today.empty else 5.35
     else:
         total_measurements = 0
         avg_ph_today = 5.35

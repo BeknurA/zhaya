@@ -11,3 +11,4 @@ venv/
 venv/
 # Также полезно исключить папки IDE, например, PyCharm
 .idea/
+streamlit.log
