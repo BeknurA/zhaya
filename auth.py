@@ -11,12 +11,24 @@ SUPABASE_URL = st.secrets["supabase"]["url"]
 SUPABASE_KEY = st.secrets["supabase"]["key"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Роли пользователей и их права
+# Роли пользователей, их права и локализованные имена
 ROLES = {
-    "admin": {"permissions": ["all"]},
-    "manager": {"permissions": [ "view_reports", "edit_data", "view_history"]},
-    "operator": {"permissions": ["view_dashboard", "edit_data"]},
-    "analyst": {"permissions": ["view_dashboard", "view_reports", "view_history"]},
+    "admin": {
+        "name": {"ru": "Администратор", "en": "Administrator", "kk": "Әкімші"},
+        "permissions": ["all"]
+    },
+    "manager": {
+        "name": {"ru": "Менеджер", "en": "Manager", "kk": "Менеджер"},
+        "permissions": ["view_dashboard", "view_reports", "edit_data", "view_history"]
+    },
+    "operator": {
+        "name": {"ru": "Оператор", "en": "Operator", "kk": "Оператор"},
+        "permissions": ["view_dashboard", "edit_data"]
+    },
+    "analyst": {
+        "name": {"ru": "Аналитик", "en": "Analyst", "kk": "Сарапшы"},
+        "permissions": ["view_dashboard", "view_reports", "view_history"]
+    }
 }
 
 def hash_password(password: str) -> str:
@@ -53,14 +65,23 @@ def authenticate_user(email: str, password: str) -> dict:
         }
     return {"authenticated": False, "error": "Неверный логин или пароль"}
 
-def log_activity(user_id: str, action: str, details: Optional[str] = ""):
-    """Логирование активности"""
-    supabase.table("activity_logs").insert({
-        "user_id": user_id,
-        "action": action,
-        "details": details,
-        "timestamp": datetime.utcnow().isoformat()
-    }).execute()
+def log_activity(user_id: str, action: str, details: Optional[dict] = None):
+    """
+    Логирование активности пользователя.
+    Details теперь может быть словарем для большей гибкости.
+    """
+    try:
+        supabase.table("activity_logs").insert({
+            "user_id": user_id,
+            "action": action,
+            "details": details if details else {},
+            "timestamp": datetime.utcnow().isoformat()
+        }).execute()
+    except Exception as e:
+        # В случае ошибки логирования, используем стандартный logging,
+        # чтобы не прерывать основной процесс.
+        import logging
+        logging.error(f"Error logging activity: {e}")
 
 def check_permission(user_role: str, permission: str) -> bool:
     """Проверка прав доступа"""
@@ -87,11 +108,41 @@ def show_login_page(lang_choice="ru"):
     """Страница входа в Streamlit"""
     st.markdown("""
     <style>
-    .login-container {max-width: 450px;margin: 80px auto;padding: 40px;background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
-    .login-card {background:white;padding:40px;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.1);}
-    .login-title {text-align:center;color:#667eea;font-size:2.5em;font-weight:700;margin-bottom:10px;}
-    .login-subtitle {text-align:center;color:#666;margin-bottom:30px;}
-    .demo-credentials {background:#f8f9fa;padding:15px;border-radius:8px;margin-top:20px;font-size:0.9em;border-left:4px solid #667eea;}
+        body {
+            background: #f0f2f5;
+        }
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-card {
+            background: #ffffff;
+            padding: 40px 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+        .login-title {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        .login-subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .stButton button {
+            background-color: #0d6efd;
+            color: white;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100%;
+            font-weight: 600;
+        }
     </style>
     """, unsafe_allow_html=True)
 

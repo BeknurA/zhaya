@@ -67,8 +67,22 @@ def init_supabase():
 # === ОСНОВНЫЕ ФУНКЦИИ ДЛЯ НОВОЙ БД ===
 # =================================================================
 
-def create_production_batch(product_type: str, target_concentration: float, initial_weight: float):
-    """Создает новую производственную партию"""
+def create_production_batch(product_type: str, target_concentration: float, initial_weight: float, user_id: str):
+    """
+    Создает новую производственную партию с валидацией данных.
+    Также логирует это действие.
+    """
+    # --- Валидация данных ---
+    if not all([product_type, target_concentration is not None, initial_weight is not None]):
+        st.error("Все поля должны быть заполнены.")
+        return None
+    if initial_weight <= 0:
+        st.error("Начальный вес должен быть положительным числом.")
+        return None
+    if not (0 <= target_concentration <= 15):
+        st.error("Концентрация облепихи должна быть в диапазоне от 0 до 15%.")
+        return None
+
     supabase = init_supabase()
     if not supabase:
         return None
@@ -80,11 +94,25 @@ def create_production_batch(product_type: str, target_concentration: float, init
             'initial_weight': initial_weight
         }
         response = supabase.table('production_batches').insert(data).execute()
-        return response.data[0] if response.data else None
-    except Exception as e:
-        st.error(f"Ошибка создания партии: {e}")
+
+        if response.data:
+            batch_info = response.data[0]
+            # Логируем успешное создание
+            log_details = {
+                "batch_id": batch_info.get('batch_id'),
+                "product_type": product_type,
+                "initial_weight": initial_weight
+            }
+            log_activity(user_id, "create_batch", details=log_details)
+            return batch_info
         return None
 
+    except Exception as e:
+        st.error(f"Ошибка создания партии: {e}")
+        log_activity(user_id, "create_batch_failed", details={"error": str(e)})
+        return None
+
+@st.cache_data(ttl=60)
 def fetch_production_batches(limit: int = 100):
     """Получает список производственных партий"""
     supabase = init_supabase()
@@ -124,6 +152,7 @@ def add_lab_measurement(batch_id: int, parameter_name: str, parameter_value: flo
         st.error(f"Ошибка добавления измерения: {e}")
         return False
 
+@st.cache_data(ttl=60)
 def fetch_lab_measurements(batch_id: int = None):
     """Получает лабораторные измерения (все или для конкретной партии)"""
     supabase = init_supabase()
@@ -234,3 +263,70 @@ def get_sensor_types():
 def get_product_types():
     """Возвращает доступные типы продуктов"""
     return ['Жая', 'Формованное мясо']
+
+# =================================================================
+# === НОВЫЕ ФУНКЦИИ ДЛЯ ДАШБОРДОВ И ОТЧЕТОВ ===
+# =================================================================
+
+@st.cache_data(ttl=300) # Кэширование на 5 минут
+def fetch_dashboard_config(dashboard_id: int):
+    """
+    Получает конфигурацию дашборда, включая все связанные с ним отчеты.
+    """
+    supabase = init_supabase()
+    if not supabase:
+        return None, []
+
+    try:
+        # Получаем информацию о дашборде
+        dashboard_response = supabase.table('dashboards').select('*').eq('dashboard_id', dashboard_id).single().execute()
+        dashboard_data = dashboard_response.data
+
+        if not dashboard_data:
+            return None, []
+
+        # Получаем связанные отчеты и их расположение
+        reports_response = supabase.table('dashboard_reports')\
+            .select('*, reports(*)')\
+            .eq('dashboard_id', dashboard_id)\
+            .execute()
+
+        reports_data = reports_response.data
+
+        return dashboard_data, reports_data
+
+    except Exception as e:
+        st.error(f"Ошибка при загрузке конфигурации дашборда: {e}")
+        return None, []
+
+@st.cache_data(ttl=300)
+def fetch_report_data(query: str):
+    """
+    Выполняет SQL-запрос отчета и возвращает данные в виде DataFrame.
+    """
+    supabase = init_supabase()
+    if not supabase or not query:
+        return pd.DataFrame()
+
+    try:
+        # Для выполнения произвольных запросов нам нужно использовать прямое подключение к БД,
+        # так как Supabase Python client не поддерживает произвольные `SELECT`.
+        # Мы будем использовать `psycopg2`, который должен быть установлен.
+        import psycopg2
+
+        config = get_supabase_config()
+        db_url = config.get('db_url')
+
+        if not db_url:
+            st.error("DB URL не найден в конфигурации.")
+            return pd.DataFrame()
+
+        with psycopg2.connect(db_url) as conn:
+            df = pd.read_sql_query(query, conn)
+
+        return df
+
+    except Exception as e:
+        # Важно: Обрабатываем ошибки, чтобы вредоносный SQL не сломал приложение
+        st.error(f"Ошибка выполнения запроса для отчета: {e}")
+        return pd.DataFrame()
