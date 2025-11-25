@@ -2,14 +2,9 @@
 import streamlit as st
 import pandas as pd
 from auth import get_all_users, ROLES
+from database_supabase import fetch_activity_logs
 from datetime import datetime
-import sqlite3
 from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-AUTH_DB = DATA_DIR / "users.db"
-
 
 def show_admin_panel(lang_choice):
     """Административная панель управления системой"""
@@ -60,13 +55,18 @@ def show_users_management():
     users = get_all_users()
 
     if users:
-        users_df = pd.DataFrame(users, columns=[
-            'ID', 'Логин', 'Полное имя', 'Роль', 'Email',
-            'Создан', 'Последний вход', 'Активен'
-        ])
+        # Filter out None values from the users list
+        users = [user for user in users if user]
+
+        # Convert the list of dictionaries to a DataFrame
+        users_df = pd.DataFrame(users)
+
+        # Select and rename columns
+        users_df = users_df[['user_id', 'username', 'full_name', 'role', 'email', 'created_at', 'last_login', 'is_active']]
+        users_df.columns = ['ID', 'Логин', 'Полное имя', 'Роль', 'Email', 'Создан', 'Последний вход', 'Активен']
 
         # Перевод статуса
-        users_df['Активен'] = users_df['Активен'].apply(lambda x: '✅ Да' if x == 1 else '❌ Нет')
+        users_df['Активен'] = users_df['Активен'].apply(lambda x: '✅ Да' if x else '❌ Нет')
 
         # Перевод ролей
         def translate_role(role):
@@ -130,24 +130,7 @@ def show_system_activity():
     """Активность системы"""
     st.subheader("📊 Активность системы")
 
-    # Логи активности
-    conn = sqlite3.connect(AUTH_DB, check_same_thread=False)
-
-    logs_query = """
-        SELECT 
-            al.timestamp,
-            u.full_name,
-            u.username,
-            al.action,
-            al.details
-        FROM activity_logs al
-        JOIN users u ON al.user_id = u.id
-        ORDER BY al.timestamp DESC
-        LIMIT 100
-    """
-
-    logs_df = pd.read_sql_query(logs_query, conn)
-    conn.close()
+    logs_df = fetch_activity_logs()
 
     if not logs_df.empty:
         logs_df['timestamp'] = pd.to_datetime(logs_df['timestamp'])
@@ -268,18 +251,11 @@ def show_system_settings():
     with col1:
         st.markdown("### 🗄️ База данных")
 
-        st.info(f"**Путь к БД:** {AUTH_DB}")
-
         if st.button("🔄 Проверить целостность БД"):
             st.success("✅ База данных в порядке")
 
         if st.button("💾 Создать резервную копию"):
             st.success("✅ Резервная копия создана")
-
-        st.warning("⚠️ Опасная зона")
-        if st.button("🗑️ Очистить логи активности", type="secondary"):
-            if st.checkbox("Подтверждаю удаление"):
-                st.info("Логи очищены")
 
     with col2:
         st.markdown("### 📧 Уведомления")
@@ -314,7 +290,7 @@ def show_system_settings():
             f"{platform.system()} {platform.release()}",
             f"{sys.version.split()[0]}",
             st.__version__,
-            "SQLite 3",
+            "PostgreSQL (Supabase)",
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ]
     }

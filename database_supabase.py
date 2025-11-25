@@ -169,6 +169,32 @@ def fetch_iot_sensor_data(batch_id: int = None, limit: int = 1000):
 # === ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ===
 # =================================================================
 
+def fetch_activity_logs(limit: int = 100):
+    """Получает логи активности пользователей"""
+    supabase = init_supabase()
+    if not supabase:
+        return pd.DataFrame()
+
+    try:
+        response = supabase.table('activity_logs')\
+            .select('*, users(full_name, username)')\
+            .order('timestamp', desc=True)\
+            .limit(limit)\
+            .execute()
+
+        if response.data:
+            df = pd.DataFrame(response.data)
+            # Разворачиваем данные пользователя из словаря в отдельные колонки
+            if 'users' in df.columns:
+                user_df = pd.json_normalize(df['users'])
+                user_df.rename(columns={'full_name': 'full_name', 'username': 'username'}, inplace=True)
+                df = df.drop(columns=['users']).join(user_df)
+            return df
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Ошибка получения логов активности: {e}")
+        return pd.DataFrame()
+
 def get_batch_details(batch_id: int):
     """Получает детальную информацию о партии"""
     supabase = init_supabase()
