@@ -428,3 +428,16 @@ def get_user_permissions(user_role: str) -> list:
     if user_role not in ROLES:
         return []
     return ROLES[user_role]["permissions"]
+
+def get_all_users():
+    """Получить список всех пользователей"""
+    try:
+        response = supabase.table("users") \
+            .select("*") \
+            .order("created_at", desc=True) \
+            .execute()
+        
+        return response.data if response.data else []
+    except Exception as e:
+        st.error(f"Ошибка получения пользователей: {e}")
+        return []

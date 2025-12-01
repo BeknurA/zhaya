@@ -56,25 +56,48 @@ def show_users_management():
     users = get_all_users()
 
     if users:
-        # Filter out None values from the users list
+        # Фильтруем None значения
         users = [user for user in users if user]
 
-        # Convert the list of dictionaries to a DataFrame
+        # Создаём DataFrame
         users_df = pd.DataFrame(users)
 
-        # Select and rename columns
-        users_df = users_df[
-            ['user_id', 'username', 'full_name', 'role', 'email', 'created_at', 'last_login', 'is_active']]
-        users_df.columns = ['ID', 'Логин', 'Полное имя', 'Роль', 'Email', 'Создан', 'Последний вход', 'Активен']
+        # Используем только существующие колонки из вашей БД
+        display_columns = ['user_id', 'full_name', 'role', 'email', 'department', 'created_at', 'last_login', 'is_active']
+        
+        # Проверяем наличие колонок и фильтруем
+        existing_columns = [col for col in display_columns if col in users_df.columns]
+        users_df = users_df[existing_columns]
+        
+        # Переименовываем колонки
+        column_mapping = {
+            'user_id': 'ID',
+            'full_name': 'Полное имя',
+            'role': 'Роль',
+            'email': 'Email',
+            'department': 'Отдел',
+            'created_at': 'Создан',
+            'last_login': 'Последний вход',
+            'is_active': 'Активен'
+        }
+        
+        users_df.rename(columns={k: v for k, v in column_mapping.items() if k in users_df.columns}, inplace=True)
 
         # Перевод статуса
-        users_df['Активен'] = users_df['Активен'].apply(lambda x: '✅ Да' if x else '❌ Нет')
+        if 'Активен' in users_df.columns:
+            users_df['Активен'] = users_df['Активен'].apply(lambda x: '✅ Да' if x else '❌ Нет')
 
         # Перевод ролей
         def translate_role(role):
             return ROLES.get(role, {}).get("name", {}).get("ru", role)
 
-        users_df['Роль'] = users_df['Роль'].apply(translate_role)
+        if 'Роль' in users_df.columns:
+            users_df['Роль'] = users_df['Роль'].apply(translate_role)
+
+        # Форматирование дат
+        for date_col in ['Создан', 'Последний вход']:
+            if date_col in users_df.columns:
+                users_df[date_col] = pd.to_datetime(users_df[date_col], errors='coerce').dt.strftime('%Y-%m-%d %H:%M')
 
         # Статистика
         col1, col2, col3, col4 = st.columns(4)
@@ -83,15 +106,16 @@ def show_users_management():
             st.metric("Всего пользователей", len(users_df))
 
         with col2:
-            active_users = (users_df['Активен'] == '✅ Да').sum()
+            active_users = (users_df['Активен'] == '✅ Да').sum() if 'Активен' in users_df.columns else 0
             st.metric("Активных", active_users)
 
         with col3:
-            admins = (users_df['Роль'].str.contains('Администратор')).sum()
+            admins = (users_df['Роль'].str.contains('Администратор')).sum() if 'Роль' in users_df.columns else 0
             st.metric("Администраторов", admins)
 
         with col4:
-            st.metric("Ролей", users_df['Роль'].nunique())
+            roles_count = users_df['Роль'].nunique() if 'Роль' in users_df.columns else 0
+            st.metric("Ролей", roles_count)
 
         st.markdown("---")
 
@@ -107,26 +131,103 @@ def show_users_management():
         with col_action1:
             with st.expander("➕ Создать нового пользователя"):
                 with st.form("create_user_form"):
-                    new_username = st.text_input("Логин")
-                    new_password = st.text_input("Пароль", type="password")
-                    new_fullname = st.text_input("Полное имя")
-                    new_email = st.text_input("Email")
-                    new_role = st.selectbox("Роль", ["operator", "analyst", "manager", "admin"])
+                    new_email = st.text_input("Email*", placeholder="user@example.com")
+                    new_password = st.text_input("Пароль*", type="password", placeholder="Минимум 8 символов")
+                    new_fullname = st.text_input("Полное имя*", placeholder="Иванов Иван Иванович")
+                    new_department = st.text_input("Отдел", placeholder="Производство")
+                    new_role = st.selectbox("Роль*", ["operator", "analyst", "manager", "admin"])
 
                     if st.form_submit_button("Создать пользователя"):
-                        if new_username and new_password and new_fullname:
-                            # Здесь должна быть логика создания пользователя
-                            st.success(f"✅ Пользователь {new_username} создан!")
+                        if new_password and new_fullname and new_email:
+                            # Валидация
+                            from auth import validate_email, validate_password_strength, hash_password
+                            
+                            if not validate_email(new_email):
+                                st.error("❌ Неверный формат email")
+                            else:
+                                is_valid, msg = validate_password_strength(new_password)
+                                if not is_valid:
+                                    st.error(f"❌ {msg}")
+                                else:
+                                    # Создание пользователя
+                                    try:
+                                        from auth import supabase
+                                        password_hash = hash_password(new_password)
+                                        
+                                        new_user_data = {
+                                            'email': new_email,
+                                            'password_hash': password_hash,
+                                            'full_name': new_fullname,
+                                            'role': new_role,
+                                            'department': new_department if new_department else None,
+                                            'is_active': True
+                                        }
+                                        
+                                        response = supabase.table('users').insert(new_user_data).execute()
+                                        
+                                        if response.data:
+                                            st.success(f"✅ Пользователь {new_fullname} успешно создан!")
+                                            st.rerun()
+                                        else:
+                                            st.error("❌ Ошибка при создании пользователя")
+                                    except Exception as e:
+                                        st.error(f"❌ Ошибка: {str(e)}")
                         else:
-                            st.error("Заполните все обязательные поля")
+                            st.error("❌ Заполните все обязательные поля (отмечены *)")
 
         with col_action2:
-            with st.expander("🔄 Сбросить пароль пользователя"):
-                st.markdown("Функция в разработке")
+            with st.expander("🔄 Управление пользователем"):
+                if not users_df.empty:
+                    # Выбор пользователя
+                    user_emails = users_df['Email'].tolist() if 'Email' in users_df.columns else []
+                    selected_email = st.selectbox("Выберите пользователя", user_emails)
+                    
+                    if selected_email:
+                        col_btn1, col_btn2 = st.columns(2)
+                        
+                        with col_btn1:
+                            if st.button("🔒 Деактивировать", use_container_width=True):
+                                try:
+                                    from auth import supabase
+                                    supabase.table('users').update({'is_active': False}).eq('email', selected_email).execute()
+                                    st.success("✅ Пользователь деактивирован")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Ошибка: {e}")
+                        
+                        with col_btn2:
+                            if st.button("✅ Активировать", use_container_width=True):
+                                try:
+                                    from auth import supabase
+                                    supabase.table('users').update({'is_active': True}).eq('email', selected_email).execute()
+                                    st.success("✅ Пользователь активирован")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Ошибка: {e}")
+                        
+                        st.markdown("---")
+                        
+                        # Сброс пароля
+                        with st.form("reset_password_form"):
+                            new_password = st.text_input("Новый пароль", type="password")
+                            if st.form_submit_button("🔄 Сбросить пароль"):
+                                if new_password:
+                                    from auth import validate_password_strength, hash_password, supabase
+                                    is_valid, msg = validate_password_strength(new_password)
+                                    if not is_valid:
+                                        st.error(f"❌ {msg}")
+                                    else:
+                                        try:
+                                            password_hash = hash_password(new_password)
+                                            supabase.table('users').update({'password_hash': password_hash}).eq('email', selected_email).execute()
+                                            st.success("✅ Пароль успешно изменён")
+                                        except Exception as e:
+                                            st.error(f"❌ Ошибка: {e}")
+                                else:
+                                    st.error("❌ Введите новый пароль")
 
     else:
         st.info("Нет зарегистрированных пользователей")
-
 
 def show_system_activity():
     """Активность системы"""
@@ -145,11 +246,16 @@ def show_system_activity():
             st.metric("Активность сегодня", len(today_logs))
 
         with col2:
-            unique_users = logs_df['username'].nunique()
+            # Используем full_name вместо username
+            user_col = 'full_name' if 'full_name' in logs_df.columns else 'email'
+            if user_col in logs_df.columns:
+                unique_users = logs_df[user_col].nunique()
+            else:
+                unique_users = logs_df['user_id'].nunique() if 'user_id' in logs_df.columns else 0
             st.metric("Активных пользователей", unique_users)
 
         with col3:
-            logins_today = len(today_logs[today_logs['action'] == 'login'])
+            logins_today = len(today_logs[today_logs['action'] == 'login']) if 'action' in today_logs.columns else 0
             st.metric("Входов сегодня", logins_today)
 
         st.markdown("---")
@@ -157,32 +263,80 @@ def show_system_activity():
         # Фильтры
         col_filter1, col_filter2 = st.columns(2)
 
+        # Определяем колонку для фильтрации пользователей
+        user_display_col = 'full_name' if 'full_name' in logs_df.columns else ('email' if 'email' in logs_df.columns else 'user_id')
+
         with col_filter1:
-            filter_user = st.multiselect(
-                "Фильтр по пользователю",
-                options=logs_df['full_name'].unique(),
-                default=logs_df['full_name'].unique()[:5]
-            )
+            if user_display_col in logs_df.columns:
+                unique_users_list = logs_df[user_display_col].dropna().unique().tolist()
+                # Берём первые 5 или все, если меньше 5
+                default_users = unique_users_list[:min(5, len(unique_users_list))]
+                
+                filter_user = st.multiselect(
+                    "Фильтр по пользователю",
+                    options=unique_users_list,
+                    default=default_users
+                )
+            else:
+                filter_user = []
 
         with col_filter2:
-            filter_action = st.multiselect(
-                "Фильтр по действию",
-                options=logs_df['action'].unique(),
-                default=logs_df['action'].unique()
-            )
+            if 'action' in logs_df.columns:
+                unique_actions = logs_df['action'].unique().tolist()
+                filter_action = st.multiselect(
+                    "Фильтр по действию",
+                    options=unique_actions,
+                    default=unique_actions
+                )
+            else:
+                filter_action = []
 
         # Применение фильтров
-        filtered_logs = logs_df[
-            (logs_df['full_name'].isin(filter_user)) &
-            (logs_df['action'].isin(filter_action))
+        if filter_user and filter_action and user_display_col in logs_df.columns and 'action' in logs_df.columns:
+            filtered_logs = logs_df[
+                (logs_df[user_display_col].isin(filter_user)) &
+                (logs_df['action'].isin(filter_action))
             ]
+        elif filter_user and user_display_col in logs_df.columns:
+            filtered_logs = logs_df[logs_df[user_display_col].isin(filter_user)]
+        elif filter_action and 'action' in logs_df.columns:
+            filtered_logs = logs_df[logs_df['action'].isin(filter_action)]
+        else:
+            filtered_logs = logs_df
 
         # Отображение логов
-        st.dataframe(
-            filtered_logs[['timestamp', 'full_name', 'action', 'details']].head(50),
-            use_container_width=True,
-            hide_index=True
-        )
+        display_columns = []
+        if 'timestamp' in filtered_logs.columns:
+            display_columns.append('timestamp')
+        if user_display_col in filtered_logs.columns:
+            display_columns.append(user_display_col)
+        if 'action' in filtered_logs.columns:
+            display_columns.append('action')
+        if 'details' in filtered_logs.columns:
+            display_columns.append('details')
+
+        if display_columns:
+            display_df = filtered_logs[display_columns].head(50).copy()
+            
+            # Форматируем timestamp
+            if 'timestamp' in display_df.columns:
+                display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Переименовываем колонки для отображения
+            rename_map = {
+                'timestamp': 'Время',
+                'full_name': 'Пользователь',
+                'email': 'Email',
+                'user_id': 'ID пользователя',
+                'action': 'Действие',
+                'details': 'Детали'
+            }
+            
+            display_df = display_df.rename(columns={k: v for k, v in rename_map.items() if k in display_df.columns})
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Нет данных для отображения")
 
     else:
         st.info("Нет записей активности")

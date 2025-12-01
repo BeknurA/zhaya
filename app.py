@@ -15,7 +15,7 @@ from pages.history_db import show_history_db
 from pages.dashboard import show_dashboard
 from pages.reports import show_reports
 from pages.supabase_test import show_supabase_test
-
+from pages.admin import show_admin_panel
 # Настройки страницы
 st.set_page_config(
     page_title="Платформа Жая — Производство",
@@ -223,6 +223,10 @@ with st.sidebar:
     if user_role == "admin":
         page_options.append(("🔧 Тест Supabase", "supabase_test"))
 
+    # После строки с supabase_test
+    if user_role == "admin":
+        page_options.append(("⚙️ Админ-панель", "admin"))
+
     # Отображение меню
     page_labels = [item[0] for item in page_options]
     page_keys = [item[1] for item in page_options]
@@ -304,5 +308,10 @@ elif page == "reports":
         show_reports(lang_choice)
     else:
         st.error("❌ Доступ запрещен")
+elif page == "admin":
+    if user_role == "admin":
+        show_admin_panel(lang_choice)
+    else:
+        st.error("❌ Доступ запрещен. Требуются права администратора.")
 else:
     st.warning("Страница не найдена")

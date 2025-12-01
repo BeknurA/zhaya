@@ -100,19 +100,23 @@ def fetch_activity_logs(limit: int = 100):
         return pd.DataFrame()
 
     try:
+        # Получаем логи с JOIN к таблице users
         response = supabase.table('activity_logs') \
-            .select('*, users(full_name, username)') \
+            .select('*, users(full_name, email)') \
             .order('timestamp', desc=True) \
             .limit(limit) \
             .execute()
 
         if response.data:
             df = pd.DataFrame(response.data)
-            # Разворачиваем данные пользователя из словаря в отдельные колонки
+            
+            # Разворачиваем данные пользователя из вложенного словаря
             if 'users' in df.columns:
-                user_df = pd.json_normalize(df['users'])
-                user_df.rename(columns={'full_name': 'full_name', 'username': 'username'}, inplace=True)
-                df = df.drop(columns=['users']).join(user_df)
+                # Создаём новые колонки из словаря users
+                df['full_name'] = df['users'].apply(lambda x: x.get('full_name') if x else None)
+                df['email'] = df['users'].apply(lambda x: x.get('email') if x else None)
+                df = df.drop(columns=['users'])
+            
             return df
         return pd.DataFrame()
     except Exception as e:
