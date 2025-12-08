@@ -3,12 +3,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import numpy as np
 from ui import get_text
 from database_supabase import fetch_lab_measurements
 from data_loader import load_all_data
+from supabase import create_client
 
+# Получаем ключи
+url = st.secrets["supabase"]["url"]
+key = st.secrets["supabase"]["key"]
+
+supabase = create_client(url, key)
 
 def show_dashboard(lang_choice):
     """Главный производственный Dashboard с KPI"""
@@ -55,13 +61,78 @@ def show_dashboard(lang_choice):
     else:
         total_measurements = 0
         avg_ph_today = 5.35
+    def get_today_production():
+        today = date.today().isoformat()
+
+        response = (
+            supabase
+            .table("production_batches")
+            .select("initial_weight, final_weight, start_time")
+            .gte("start_time", today + " 00:00:00")
+            .lte("start_time", today + " 23:59:59")
+            .execute()
+        )
+
+        data = response.data
+        if not data:
+            return 0
+
+        total = 0
+        for row in data:
+            if row["final_weight"]:
+                total += float(row["final_weight"]) - float(row["initial_weight"])
+
+        return round(total)
+
+    def get_average_ph_today():
+        today = date.today().isoformat()
+
+        response = (
+            supabase
+            .table("lab_measurements")
+            .select("parameter_value, measurement_time")
+            .eq("parameter_name", "pH")
+            .gte("measurement_time", today + " 00:00:00")
+            .lte("measurement_time", today + " 23:59:59")
+            .execute()
+        )
+
+        values = [float(row["parameter_value"]) for row in response.data]
+
+        if not values:
+            return 0
+
+        return sum(values) / len(values)
+
+    def get_active_batches_count():
+        response = (
+            supabase
+            .table("production_batches")
+            .select("batch_id")
+            .is_("end_time", None)
+            .execute()
+        )
+        return len(response.data)
+    def get_total_measurements():
+        response = supabase.table("lab_measurements").select("measurement_id").execute()
+        return len(response.data)
+    def calculate_oee():
+        return 93.7
+
 
     # Расчет KPI
-    today_production = np.random.randint(480, 580)  # кг
+    today_production = get_today_production()
     target_production = 500
-    yield_pct = round(np.random.uniform(84, 88), 1)
-    active_batches = np.random.randint(10, 18)
-    efficiency = round(np.random.uniform(92, 97), 1)
+    today_production = get_today_production()
+    avg_ph_today = get_average_ph_today()
+    active_batches = get_active_batches_count()
+    total_measurements = get_total_measurements()
+    efficiency = calculate_oee()
+
+    target_production = 500
+    yield_pct = 87  # если надо, позже заменим на реальное значение
+
+
 
     # === БЛОК KPI ===
     st.subheader("📊 Ключевые показатели эффективности (KPI)")

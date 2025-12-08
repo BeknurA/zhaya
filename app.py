@@ -16,6 +16,7 @@ from pages.dashboard import show_dashboard
 from pages.reports import show_reports
 from pages.supabase_test import show_supabase_test
 from pages.admin import show_admin_panel
+from pages.iot_monitoring import show_iot_monitoring
 # Настройки страницы
 st.set_page_config(
     page_title="Платформа Жая — Производство",
@@ -193,6 +194,8 @@ with st.sidebar:
     if check_permission(user_role, "view_dashboard"):
         page_options.append(("🎯 Dashboard", "dashboard"))
 
+    page_options.append(("📡 IoT Мониторинг", "iot_monitoring"))
+
     # Главная страница
     page_options.append((get_text("menu_home", lang_choice), "home"))
 
@@ -284,6 +287,8 @@ page = st.session_state.selected_page
 
 if page == "dashboard":
     show_dashboard(lang_choice)
+elif page == "iot_monitoring":
+    show_iot_monitoring()
 elif page == "supabase_test" and user_role == "admin":
     show_supabase_test()
 elif page == "home":
