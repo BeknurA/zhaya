@@ -9,6 +9,7 @@ from pages.home import show_home
 from pages.production import show_production_process
 from pages.regression import show_regression_analysis_full
 from pages.ph_modeling import show_ph_modeling
+from pages.mathematical_models import show_mathematical_models
 from pages.seabuckthorn import show_seabuckthorn_analysis
 from pages.data_exploration import show_data_exploration
 from pages.history_db import show_history_db
@@ -213,6 +214,8 @@ with st.sidebar:
 
     # Исследование данных
     page_options.append((get_text("menu_data_exploration", lang_choice), "data_exploration"))
+    # Мат.модель
+    page_options.append((get_text("menu_mathematical_models", lang_choice), "mathematical_models"))
 
     # История / БД (только для аналитиков и выше)
     if check_permission(user_role, "view_history"):
@@ -303,6 +306,8 @@ elif page == "seabuckthorn":
     show_seabuckthorn_analysis(lang_choice)
 elif page == "data_exploration":
     show_data_exploration(lang_choice)
+elif page == "mathematical_models":
+    show_mathematical_models(lang_choice)
 elif page == "history_db":
     if check_permission(user_role, "view_history"):
         show_history_db(lang_choice)
