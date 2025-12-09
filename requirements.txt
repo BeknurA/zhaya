@@ -8,3 +8,5 @@ psycopg2-binary
 cryptography
 python-dotenv
 paho-mqtt
+statsmodels
+matplotlib

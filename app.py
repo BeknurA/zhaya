@@ -7,7 +7,7 @@ from database_supabase import clear_all_caches
 # Импорт страниц (удалены ml_training и new_data_input)
 from pages.home import show_home
 from pages.production import show_production_process
-from pages.regression import show_regression_models
+from pages.regression import show_regression_analysis_full
 from pages.ph_modeling import show_ph_modeling
 from pages.seabuckthorn import show_seabuckthorn_analysis
 from pages.data_exploration import show_data_exploration
@@ -296,7 +296,7 @@ elif page == "home":
 elif page == "production":
     show_production_process(lang_choice)
 elif page == "regression":
-    show_regression_models(lang_choice)
+    show_regression_analysis_full(lang_choice)
 elif page == "ph_modeling":
     show_ph_modeling(lang_choice)
 elif page == "seabuckthorn":
