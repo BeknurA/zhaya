@@ -12,6 +12,8 @@ from pages.ph_modeling import show_ph_modeling
 from pages.mathematical_models import show_mathematical_models
 from pages.seabuckthorn import show_seabuckthorn_analysis
 from pages.data_exploration import show_data_exploration
+from pages.experiments import show_experiments
+from pages.digital_safety import show_digital_safety
 from pages.history_db import show_history_db
 from pages.dashboard import show_dashboard
 from pages.reports import show_reports
@@ -216,6 +218,10 @@ with st.sidebar:
     page_options.append((get_text("menu_data_exploration", lang_choice), "data_exploration"))
     # Мат.модель
     page_options.append((get_text("menu_mathematical_models", lang_choice), "mathematical_models"))
+    # Мат.модель
+    page_options.append((get_text("menu_experiments", lang_choice), "experiments"))
+    # Мат.модель
+    page_options.append((get_text("menu_digital_safety", lang_choice), "digital_safety"))
 
     # История / БД (только для аналитиков и выше)
     if check_permission(user_role, "view_history"):
@@ -308,6 +314,10 @@ elif page == "data_exploration":
     show_data_exploration(lang_choice)
 elif page == "mathematical_models":
     show_mathematical_models(lang_choice)
+elif page == "experiments":
+    show_experiments(lang_choice)
+elif page == "digital_safety":
+    show_digital_safety(lang_choice)
 elif page == "history_db":
     if check_permission(user_role, "view_history"):
         show_history_db(lang_choice)
