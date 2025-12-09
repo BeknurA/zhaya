@@ -136,8 +136,12 @@ def show_experiments(lang_choice="ru"):
 
         # Результаты
         st.markdown(f"""
-        <div style='background: {"#d4edda" if error <= 0.05 else "#fff3cd"}; 
-                    padding: 15px; border-radius: 10px; border-left: 5px solid {"#28a745" if error <= 0.05 else "#ffc107"};'>
+        <div style='background: {"#2A453C" if error <= 0.05 else "#453C2A"}; 
+                    color: #F0F0F0; /* Принудительно светлый текст (F0F0F0) */
+                    padding: 15px; 
+                    border-radius: 10px; 
+                    border-left: 5px solid {"#4CAF50" if error <= 0.05 else "#FFC107"}; /* Яркая граница */
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);'>
             <b>{"✅ Прогноз достоверен" if error <= 0.05 else "⚠️ Требуется калибровка модели"}</b><br>
             Через <b>{target_time} часов</b> прогнозируемый pH: <b>{predicted_ph:.2f}</b><br>
             Фактический pH: <b>{actual_ph:.2f}</b><br>

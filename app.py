@@ -14,7 +14,7 @@ from pages.seabuckthorn import show_seabuckthorn_analysis
 from pages.data_exploration import show_data_exploration
 from pages.experiments import show_experiments
 from pages.digital_safety import show_digital_safety
-from pages.history_db import show_history_db
+#from pages.history_db import show_history_db
 from pages.dashboard import show_dashboard
 from pages.reports import show_reports
 from pages.supabase_test import show_supabase_test
@@ -224,8 +224,8 @@ with st.sidebar:
     page_options.append((get_text("menu_digital_safety", lang_choice), "digital_safety"))
 
     # История / БД (только для аналитиков и выше)
-    if check_permission(user_role, "view_history"):
-        page_options.append((get_text("menu_history_db", lang_choice), "history_db"))
+    #if check_permission(user_role, "view_history"):
+      #page_options.append((get_text("menu_history_db", lang_choice), "history_db"))
 
     # Отчеты (для менеджеров и аналитиков)
     if check_permission(user_role, "view_reports"):
@@ -318,11 +318,11 @@ elif page == "experiments":
     show_experiments(lang_choice)
 elif page == "digital_safety":
     show_digital_safety(lang_choice)
-elif page == "history_db":
-    if check_permission(user_role, "view_history"):
-        show_history_db(lang_choice)
-    else:
-        st.error("❌ Доступ запрещен")
+#elif page == "history_db":
+    #if check_permission(user_role, "view_history"):
+     #   show_history_db(lang_choice)
+    #else:
+     #   st.error("❌ Доступ запрещен")
 elif page == "reports":
     if check_permission(user_role, "view_reports"):
         show_reports(lang_choice)

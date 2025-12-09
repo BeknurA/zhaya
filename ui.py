@@ -46,7 +46,7 @@ LANG = {
         "menu_seabuckthorn_analysis": "Анализ с экстрактом облепихи",
         "menu_data_exploration": "Исследование данных",
         "menu_mathematical_models": "Математические модели",
-        "menu_history_db": "История / DB",
+        #"menu_history_db": "История / DB",
         "menu_ml_train_predict": "ML: Train / Predict",
         "menu_new_data_input": "Ввод новых данных",
         "menu_experiments": "Экспериментальные исследования",
